@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Travel Booking System</title>
+  <style>
+    :root{
+      --card-w: 360px;
+      --accent: #2e7d32;
+      --bg: #f2f2f2;
+      --card-bg: #fff;
+      --muted: #666;
+    }
+    html,body{
+      height:100%;
+      margin:0;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      background:var(--bg);
+      color:#222;
+    }
+    .container{
+      min-height:100%;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      padding:48px 16px;
+    }
+    h1{
+      margin:0 0 18px;
+      font-size:28px;
+      font-weight:700;
+      color:#333;
+    }
+
+    .col{
+      width:var(--card-w);
+      max-width:100%;
+      display:flex;
+      flex-direction:column;
+      gap:22px;
+      align-items:center;
+    }
+
+    .card{
+      width:100%;
+      background:var(--card-bg);
+      border-radius:10px;
+      padding:20px 18px;
+      box-shadow:0 6px 18px rgba(30,30,30,0.06);
+    }
+
+    .card h2{
+      margin:0 0 14px;
+      text-align:center;
+      font-size:20px;
+    }
+
+    form .field{
+      margin-bottom:10px;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="number"],
+    input[type="date"],
+    select{
+      width:100%;
+      padding:10px 12px;
+      border:1px solid #cfcfcf;
+      border-radius:4px;
+      box-sizing:border-box;
+      font-size:14px;
+    }
+
+    label.small { display:block; font-size:13px; color:var(--muted); margin-bottom:6px; }
+
+    .btn{
+      width:100%;
+      background:var(--accent);
+      color:#fff;
+      border:none;
+      padding:10px 12px;
+      border-radius:4px;
+      cursor:pointer;
+      font-weight:600;
+      margin-top:6px;
+    }
+
+    .btn.secondary {
+      background:#4caf50;
+    }
+
+    .result{
+      margin-top:12px;
+      white-space:pre-wrap;
+      font-size:14px;
+    }
+
+    .spacer{ height:18px; }
+
+    @media (min-width:900px){
+      .container { padding-top:48px; }
+    }
+
+    .muted-small { font-size:12px; color:var(--muted); text-align:center; margin-top:6px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Travel Booking System</h1>
+
+    <div class="col">
+      <!-- booking card -->
+      <div class="card" id="bookingCard">
+        <h2>Book Your Trip</h2>
+        <form id="bookForm" autocomplete="off" novalidate>
+          <div class="field">
+            <input id="name" name="name" type="text" placeholder="Name" required />
+          </div>
+          <div class="field">
+            <input id="email" name="email" type="email" placeholder="Email" required />
+          </div>
+          <div class="field">
+            <input id="destination" name="destination" type="text" placeholder="Destination" required />
+          </div>
+
+          <div class="field">
+            <label class="small" for="date">Travel Date</label>
+            <input id="date" name="date" type="date" required />
+          </div>
+
+          <div class="field">
+            <input id="seats" name="seats" type="number" min="1" value="1" placeholder="Seats" />
+          </div>
+
+          <button class="btn" type="submit">Book Now</button>
+        </form>
+
+        <div id="bookResult" class="result"></div>
+        <div class="muted-small">Demo mode: no backend required — booking ID will be generated locally.</div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <!-- payment card -->
+      <div class="card" id="paymentCard">
+        <h2>Make Payment</h2>
+        <form id="payForm" autocomplete="off" novalidate>
+          <div class="field">
+            <input id="bookingId" name="bookingId" type="text" placeholder="Booking ID" required />
+          </div>
+          <div class="field">
+            <input id="amount" name="amount" type="number" min="1" step="0.01" placeholder="Amount" required />
+          </div>
+          <div class="field">
+            <s +elect id="method" name="method">
+              <option value="card">Credit Card</option>
+              <option value="upi">UPI</option>
+              <option value="netbank">Net Banking</option>
+            </select>
+          </div>
+
+          <button class="btn secondary" type="submit">Pay Now</button>
+        </form>
+
+        <div id="payResult" class="result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Put your backend base URL here (for development you may use 'http://localhost:3000')
+    // Leave empty '' to use demo-mode (no backend).
+    const API_BASE = '';
+
+    // Helper to show messages
+    function show(el, text, isError = false) {
+      el.textContent = text;
+      el.style.color = isError ? 'crimson' : 'inherit';
+    }
+
+    // Small util to generate demo booking id
+    function generateBookingId() {
+      const ts = Date.now().toString(36);
+      const rnd = Math.floor(Math.random() * 9000 + 1000).toString(36);
+      return `BKG-${ts}-${rnd}`.toUpperCase();
+    }
+
+    // BOOKING FORM
+    document.getElementById('bookForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const destination = document.getElementById('destination').value.trim();
+      const seats = parseInt(document.getElementById('seats').value, 10) || 1;
+      const dateRaw = document.getElementById('date').value;
+      const resEl = document.getElementById('bookResult');
+
+      if (!name || !email || !destination || !dateRaw) {
+        show(resEl, 'Please fill all required fields.', true);
+        return;
+      }
+
+      const parsed = new Date(dateRaw);
+      if (isNaN(parsed.getTime())) {
+        show(resEl, 'Invalid date selected.', true);
+        return;
+      }
+
+      const bookingData = { name, email, destination, seats, date: dateRaw };
+
+      // Immediate feedback
+      show(resEl, `Submitting booking...\nName: ${name}\nDestination: ${destination}\nSeats: ${seats}\nDate: ${parsed.toLocaleDateString()}`);
+
+      // If API_BASE is provided, send to backend; otherwise simulate success (demo mode)
+      if (!API_BASE) {
+        // Simulate a short delay then show success and auto-fill bookingId into payment form
+        setTimeout(() => {
+          const fakeId = generateBookingId();
+          show(resEl, `Booking succeeded!\nBooking ID: ${fakeId}`);
+          // Auto-fill payment bookingId
+          document.getElementById('bookingId').value = fakeId;
+        }, 700);
+        return;
+      }
+
+      // Real backend POST (uncomment when API_BASE is set)
+      try {
+        const r = await fetch(API_BASE + '/api/book', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bookingData)
+        });
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.message || 'Booking failed');
+        const bookingId = json.bookingId || json.id || generateBookingId();
+        show(resEl, `Booking succeeded!\nBooking ID: ${bookingId}`);
+        document.getElementById('bookingId').value = bookingId;
+      } catch (err) {
+        show(resEl, 'Error: ' + err.message, true);
+      }
+    });
+
+    // PAYMENT FORM (corrected)
+    document.getElementById('payForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const bookingId = document.getElementById('bookingId').value.trim();
+      const amount = parseFloat(document.getElementById('amount').value) || 0;
+      const method = document.getElementById('method').value;
+      const resEl = document.getElementById('payResult');
+
+      if (!bookingId || amount <= 0) {
+        show(resEl, 'Please enter a valid booking ID and amount.', true);
+        return;
+      }
+
+      show(resEl, `Processing payment...\nBooking: ${bookingId}\nAmount: ₹${amount.toFixed(2)}\nMethod: ${method}`);
+
+      // Correct payload for payment
+      const paymentData = { bookingId, amount, method };
+
+      // Demo-mode (no backend) -> simulate success
+      if (!API_BASE) {
+        setTimeout(() => {
+          const tx = `TXN-${Math.floor(Math.random() * 900000 + 100000)}`;
+          show(resEl, `Payment succeeded!\nTransaction ID: ${tx}\nBooking: ${bookingId}\nAmount: ₹${amount.toFixed(2)}`);
+        }, 800);
+        return;
+      }
+
+      // Real backend POST (uncomment when API_BASE is set)
+      try {
+        const r = await fetch(API_BASE + '/api/payments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(paymentData) // ✅ send paymentData, not bookingData
+        });
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.message || 'Payment failed');
+        const txnId = json.transactionId || json.txn || 'N/A';
+        show(resEl, `Payment succeeded!\nTransaction ID: ${txnId}`);
+      } catch (err) {
+        show(resEl, 'Error: ' + err.message, true);
+      }
+    });
+  </script>
+</body>
+</html>
